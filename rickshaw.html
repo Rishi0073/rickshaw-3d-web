@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Rickshaw Rush 3D</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  margin:0;
+  overflow:hidden;
+  background:black;
+  font-family:Arial;
+}
+
+#score{
+  position:absolute;
+  top:15px;
+  left:15px;
+  color:white;
+  font-size:24px;
+  z-index:10;
+}
+</style>
+</head>
+
+<body>
+
+<div id="score">Score: 0</div>
+
+<canvas id="game"></canvas>
+
+<!-- Three.js -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<!-- GLTF Loader -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+
+/* ========== BASIC SETUP ========== */
+
+const canvas = document.getElementById("game");
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+
+const camera = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth/window.innerHeight,
+  0.1,
+  1000
+);
+
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias:true
+});
+
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+/* LIGHT */
+scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.5));
+
+const sun = new THREE.DirectionalLight(0xffffff,1);
+sun.position.set(5,10,5);
+scene.add(sun);
+
+/* RESIZE */
+window.addEventListener("resize",()=>{
+
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+/* ========== ROAD ========== */
+
+const road = new THREE.Mesh(
+  new THREE.PlaneGeometry(20,300),
+  new THREE.MeshStandardMaterial({color:0x555555})
+);
+
+road.rotation.x = -Math.PI/2;
+road.position.z = -80;
+
+scene.add(road);
+
+/* ========== LANES ========== */
+
+const lanes = [-5,0,5];
+let lane = 1;
+
+/* ========== PLAYER ========== */
+
+let auto = null;
+
+/* LOAD MODEL */
+const loader = new THREE.GLTFLoader();
+
+loader.load(
+  "auto_rickshaw.glb",
+
+  (gltf)=>{
+
+    auto = gltf.scene;
+
+    /* AUTO FIX */
+    auto.scale.set(0.7,0.7,0.7);
+    auto.position.set(0,0,0);
+
+    /* FACE CAMERA */
+    auto.rotation.y = Math.PI;
+
+    scene.add(auto);
+
+    console.log("MODEL LOADED OK ✅");
+  },
+
+  undefined,
+
+  (err)=>{
+    console.error("MODEL ERROR ❌",err);
+  }
+);
+
+/* ========== CAMERA ========== */
+
+function updateCamera(){
+
+  if(!auto) return;
+
+  camera.position.set(
+    auto.position.x,
+    6,
+    auto.position.z + 12
+  );
+
+  camera.lookAt(auto.position);
+}
+
+/* ========== SCORE ========== */
+
+let score = 0;
+
+/* ========== CONTROLS ========== */
+
+document.addEventListener("keydown",e=>{
+
+  if(e.key==="ArrowLeft" && lane>0) lane--;
+  if(e.key==="ArrowRight" && lane<2) lane++;
+});
+
+/* MOBILE TOUCH */
+let sx=0;
+
+canvas.addEventListener("touchstart",e=>{
+  sx = e.touches[0].clientX;
+});
+
+canvas.addEventListener("touchend",e=>{
+
+  let dx = e.changedTouches[0].clientX - sx;
+
+  if(dx>50 && lane<2) lane++;
+  if(dx<-50 && lane>0) lane--;
+});
+
+/* ========== GAME LOOP ========== */
+
+function animate(){
+
+  requestAnimationFrame(animate);
+
+  if(auto){
+
+    /* MOVE AUTO */
+    auto.position.x +=
+      (lanes[lane]-auto.position.x)*0.12;
+
+    /* LEAN */
+    auto.rotation.z =
+      (lanes[lane]-auto.position.x)*0.15;
+
+    score++;
+
+    document.getElementById("score").innerText =
+      "Score: "+score;
+  }
+
+  updateCamera();
+
+  renderer.render(scene,camera);
+}
+
+animate();
+
+</script>
+
+</body>
+</html>
